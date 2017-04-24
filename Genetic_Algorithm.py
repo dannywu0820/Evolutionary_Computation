@@ -7,113 +7,103 @@ import numpy as np
 from random import random, randint
 from numpy import linalg
 
-#Step1.Read Data
-dataset = []
-file_location = './Dataset/lineN200M3.txt'
-fp = open(file_location, 'r')
-for line in fp.readlines():
-    #print line[0:7].strip() + ',' + line[7:16].strip()
-    data = [float(line[0:7].strip()), float(line[7:16].strip())]
-    dataset.append(data)
+def read_dataset(file_name):
+    dataset = []
+    fp = open(file_name, 'r')
+    for line in fp.readlines():
+        data = [float(line[0:7].strip()), float(line[7:16].strip())]
+        dataset.append(data)
 
-#dataset = np.array(dataset)
-#print population
-#plt.scatter(dataset.T[0], dataset.T[1], color='b')
-#plt.show()
+    return dataset
+
+def plot_dataset(dataset):
+    dataset = np.array(dataset)
+    plt.scatter(dataset.T[0], dataset.T[1], color='black')
+    plt.show()
 
 def individual(length, min, max): #length is the length of gene
     return [ randint(min,max) for x in xrange(length) ]
-#print individual(5, 1, 3)
 
 def population(size, length, min, max):
     return [ individual(length, min, max) for x in xrange(size) ]
 
 def fitness(individual, M):
     #print individual
-    points_in_each_line = []
+    points_of_each_line = []
     mean_of_each_line = []
     direction_of_each_line = []
-    MSD_of_each_line = []
+    MSD_of_each_line = [] #Mean Squared Distance of points
     for i in range(M):
-        points_in_each_line.append(list())
+        points_of_each_line.append(list())
         MSD_of_each_line.append(50000)
-    #divide into M sets
+
+    #assign N points to M lines
     for i in range(len(individual)):
-        points_in_each_line[individual[i]-1].append(dataset[i])
+        points_of_each_line[individual[i]-1].append(dataset[i])
 
-    for each in points_in_each_line:
-        #print "-----[Line]-----"
+    for each in points_of_each_line:
+        #print "-----[Line Info]-----"
         #print each
-        if(len(each) != 0 and len(each) != 1):
+        if(len(each) > 1):
             #calculate mean of each set of points
-            mean_of_each_line.append(np.mean(np.array(each), axis=0))
-            #print mean_of_each_line
+            mean = np.mean(np.array(each), axis=0)
+            mean_of_each_line.append(mean)
+            #print mean
 
-            #calculate covariance matrix of each set
-            #print np.array(each).T #each row in transpose means a random variable
-            covariance_matrix = np.cov(np.array(each).T)
+            #calculate covariance matrix of each set of points
+            covariance_matrix = np.cov(np.array(each).T) #each row in transpose means a random variable
             #print covariance_matrix
 
-            #find eigenvector of each covariance matrix
-            #eig_val, eig_vec = linalg.eig(np.array([[1,2],[4,3]]))
-            eig_val, eig_vec = linalg.eig(covariance_matrix)
-            #print eig_val
-            #print eig_vec
+            #find eigenvector of each covariance matrix, the largest eigenvector is the direction
+            eig_val, eig_vec = linalg.eig(covariance_matrix) #can test with np.array([[1,2],[4,3]])
             if(eig_val[0] > eig_val[1]):
                 direction_of_each_line.append(eig_vec[0])
             else:
                 direction_of_each_line.append(eig_vec[1])
+            #print eig_val
+            #print eig_vec
         else:
             mean_of_each_line.append(np.array([0,0]))
             direction_of_each_line.append(np.array([0,0]))
 
-
-    #calculate MSD of each line
+    #calculate MSD of points to their assigned lines
     for i in range(M):
-        num_of_points = len(points_in_each_line[i])
+        num_of_points = len(points_of_each_line[i])
         if(num_of_points > 1):
             sqr_dis = 0
-            for point in points_in_each_line[i]:
-                dis = distance(point, mean_of_each_line[i], direction_of_each_line[i])
+            for point in points_of_each_line[i]:
+                dis = distance_to_line(np.array(point), mean_of_each_line[i], direction_of_each_line[i])
                 sqr_dis+=(dis*dis)
             MSD = sqr_dis/num_of_points
             MSD_of_each_line[i] = MSD
 
-    #for i in range(M):
-        #print MSD_of_each_line[i]
-    fitness_value = sum(MSD_of_each_line) #1/sum(MSD_of_each_line)
+    #print MSD_of_each_line
+    fitness_value = sum(MSD_of_each_line)/M #1/sum(MSD_of_each_line)
     #print "fitness value = "+str(fitness_value)
     return fitness_value
 
-def distance(point, mean, direction):
-    point_out = np.array(point)
-    pointB = mean
-    pointC = mean + direction*10
-    #distance = linalg.norm(np.cross(pointB-pointC, pointC-point_out))/linalg.norm(pointB-pointC)
-    #print distance
-
-    perpen_dir = np.array([direction[1], -direction[0]]) #the vector which is perpendicular to direction
-    PQ = point_out-pointB
-    distance = linalg.norm(np.dot(PQ, perpen_dir))/linalg.norm(perpen_dir)
+def distance_to_line(point, mean, direction):
+    perpendicular_direction = np.array([direction[1], -direction[0]]) #the vector which is perpendicular to direction vector
+    PQ = point-mean
+    distance = linalg.norm(np.dot(PQ, perpendicular_direction))/linalg.norm(perpendicular_direction)
     return distance
 
-#fitness(individual(100, 1, 3), 3)
-
 evolve_history = []
-def evolve(pop, groups, retain=0.2, crossover=0.05, mutate=0.01):
+def evolve(pop, groups, retain=0.05, mutate=0.5, random_select=0.02):
     grade = [ (fitness(ind, groups), ind) for ind in pop]
-    #sorted in ascending order, the lower fitness value is, the better individual is
+    #sorted in ascending order, the lower a fitness value is, the better the individual is
     sorted_pop = [ x[1] for x in sorted(grade) ]
     print fitness(sorted_pop[0], groups)
     evolve_history.append(fitness(sorted_pop[0], groups))
-    #print "[Current Generation]"
-    #print np.array(sorted_pop)
 
     retained_len = int(len(sorted_pop)*retain)
     parents = sorted_pop[:retained_len] #form mating pools
-    #print parents
 
     #add other individuals to promote genetic diversity
+    for individual in sorted_pop[retained_len:]:
+        if random_select > random():
+            parents.append(individual)
+
     #crossover parents to create children
     individual_len = len(pop[0])
     parents_len = len(parents)
@@ -125,20 +115,34 @@ def evolve(pop, groups, retain=0.2, crossover=0.05, mutate=0.01):
         mate1 = parents[mate1]
         mate2 = parents[mate2]
         crossover_point = randint(0, individual_len-1)
+        '''crossover_point2 = randint(0, individual_len-1)
+        if(crossover_point < crossover_point2):
+            child = mate1[:crossover_point] + mate2[crossover_point:crossover_point2] + mate1[crossover_point2:]
+        else:
+            child = mate1[:crossover_point2] + mate2[crossover_point2:crossover_point] + mate1[crossover_point:]'''
         child = mate1[:crossover_point] + mate2[crossover_point:]
+        #print str(child.count(1)) + ":" + str(child.count(2)) + ":" + str(child.count(3)) + ":" + str(child.count(4))
         children.append(child)
     parents.extend(children)
-    #print "[Next Generation]"
-    #print np.array(parents)
+
     #mutate some individuals
-    for ind in parents:
-        #for i in range(individual_len):
+    for individual in parents:
         if random() > mutate:
-            #print "mutate"
-            mutate_pos = randint(0, individual_len-1)
-            ind[mutate_pos] = randint(1, groups)
+            mutate_point = randint(0, individual_len-1)
+            individual[mutate_point] = randint(1, groups)
 
     return parents
+
+def genetic_algorithm(pop_size=50, ind_len=100, gene_min=1, gene_max=4, gen_num=100):
+    pop = population(pop_size, ind_len, gene_min, gene_max)
+    for i in range(0, gen_num):
+        pop = evolve(pop, groups=gene_max)
+
+    final_grade = [ (fitness(ind, gene_max), ind) for ind in pop]
+    best_ind = sorted(final_grade)[0][1]
+    print best_ind
+
+    plot_result(best_ind)
 
 def plot_result(individual):
     colors = ['red', 'blue', 'green', 'black', 'magenta']
@@ -146,22 +150,11 @@ def plot_result(individual):
         plt.scatter(xy[0], xy[1], color=colors[gene-1])
     plt.show()
 
+    evolve_gen = list(range(1, len(evolve_history)+1))
     plt.plot(evolve_gen, evolve_history, color='b')
     plt.show()
 
-pop_size = 100
-ind_len = 200
-ind_min = 1
-ind_max = 3
-pop = population(pop_size, ind_len, ind_min, ind_max)
-
-gen_num = 200
-evolve_gen = list(range(0, gen_num))
-for i in range(0, gen_num):
-    pop = evolve(pop, groups=ind_max)
-
-final_grade = [ (fitness(ind, ind_max), ind) for ind in pop]
-best_ind = sorted(final_grade)[0][1]
-print best_ind
-
-plot_result(best_ind)
+if __name__ == '__main__':
+    dataset = read_dataset('./Dataset/lineN100M4.txt')
+    #plot_dataset(dataset)
+    genetic_algorithm(pop_size=50, ind_len=100, gene_min=1, gene_max=4, gen_num=300)
