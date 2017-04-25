@@ -136,7 +136,7 @@ def mutate(individual, mutate_type, mutate_rate):
     return individual
 
 evolve_history = []
-def evolve(pop, groups, retain_rate=0.1, crossover_rate=0.5, mutate_rate=0, random_select=0.01):
+def evolve(pop, groups, control_flow_type='steady-state', retain_rate=0.01, crossover_rate=0.5, mutate_rate=1, random_select=0.01):
     grade = [ (fitness(ind, groups), ind) for ind in pop]
     #sorted in ascending order, the lower a fitness value is, the better the individual is
     sorted_pop = [ x[1] for x in sorted(grade) ]
@@ -156,23 +156,25 @@ def evolve(pop, groups, retain_rate=0.1, crossover_rate=0.5, mutate_rate=0, rand
     parents_len = len(parents)
     desired_len = len(pop) - parents_len
     children = []
-    while len(children) < desired_len:
+    if control_flow_type != 'generational':
+        #keep best parents in next generation
+        children.extend(parents)
+    while len(children) < len(pop):
         mate1 = randint(0, parents_len-1)
         mate2 = randint(0, parents_len-1)
         mate1 = parents[mate1]
         mate2 = parents[mate2]
         crossover_point = randint(0, individual_len-1)
-        child = crossover(mate1, mate2, 'uniform', crossover_rate)
+        child = crossover(mate1, mate2, '1-point', crossover_rate)
         #child = mate1[:crossover_point] + mate2[crossover_point:]
         #print str(child.count(1)) + ":" + str(child.count(2)) + ":" + str(child.count(3)) + ":" + str(child.count(4))
         children.append(child)
-    parents.extend(children)
 
     #mutate some individuals
-    for individual in parents:
+    for individual in children:
         individual = mutate(individual, 'swap', mutate_rate)
 
-    return parents
+    return children #parents
 
 def genetic_algorithm(pop_size=50, ind_len=100, gene_min=1, gene_max=4, gen_num=200):
     pop = population(pop_size, ind_len, gene_min, gene_max)
@@ -203,5 +205,5 @@ def get_permutations(range=0, repeat=2):
 if __name__ == '__main__':
     dataset = read_dataset('./Dataset/lineN100M4.txt')
     #plot_dataset(dataset)
-    genetic_algorithm(pop_size=10000, ind_len=100, gene_min=1, gene_max=4, gen_num=10)
+    genetic_algorithm(pop_size=100, ind_len=100, gene_min=1, gene_max=4, gen_num=200)
     #get_permutations()
