@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from random import random, randint
 from numpy import linalg
+import itertools
 
 def read_dataset(file_name):
     dataset = []
@@ -88,15 +89,61 @@ def distance_to_line(point, mean, direction):
     distance = linalg.norm(np.dot(PQ, perpendicular_direction))/linalg.norm(perpendicular_direction)
     return distance
 
+def crossover(mate1, mate2, crossover_type, crossover_rate):
+    child = []
+    if crossover_type == '1-point':
+        crossover_point = randint(0, len(mate1)-1)
+        child = mate1[:crossover_point] + mate2[crossover_point:]
+    elif crossover_type == '2-point':
+        crossover_point = randint(0, len(mate1)-1)
+        crossover_point2 = randint(0, len(mate2)-1)
+        if(crossover_point < crossover_point2):
+            child = mate1[:crossover_point] + mate2[crossover_point:crossover_point2] + mate1[crossover_point2:]
+        else:
+            child = mate1[:crossover_point2] + mate2[crossover_point2:crossover_point] + mate1[crossover_point:]
+    elif crossover_type == 'uniform':
+        for i in range(0, len(mate1)):
+            if crossover_rate > random():
+                child.append(mate1[i])
+            else:
+                child.append(mate2[i])
+    else:
+        pass
+
+    return child
+
+def mutate(individual, mutate_type, mutate_rate):
+    individual_len = len(individual)
+    if mutate_type == 'swap':
+        if mutate_rate > random():
+            mutate_point = randint(0, individual_len-1)
+            mutate_point2 = randint(0, individual_len-1)
+            individual[mutate_point], individual[mutate_point2] = individual[mutate_point2], individual[mutate_point]
+    elif mutate_type == 'inversion':
+        if mutate_rate > random():
+            mutate_point = randint(0, individual_len-1)
+            mutate_point2 = randint(mutate_point, individual_len-1)
+            reversed_part = list(reversed(individual[mutate_point:mutate_point2]))
+            #print individual[:mutate_point]
+            #print reversed_part
+            #print individual[mutate_point2:]
+            individual = individual[:mutate_point] + reversed_part + individual[mutate_point2:]
+    else:
+        if mutate_rate > random():
+            mutate_point = randint(0, individual_len-1)
+            individual[mutate_point] = randint(1, 4)
+
+    return individual
+
 evolve_history = []
-def evolve(pop, groups, retain=0.05, mutate=0.5, random_select=0.02):
+def evolve(pop, groups, retain_rate=0.1, crossover_rate=0.5, mutate_rate=0, random_select=0.01):
     grade = [ (fitness(ind, groups), ind) for ind in pop]
     #sorted in ascending order, the lower a fitness value is, the better the individual is
     sorted_pop = [ x[1] for x in sorted(grade) ]
     print fitness(sorted_pop[0], groups)
     evolve_history.append(fitness(sorted_pop[0], groups))
 
-    retained_len = int(len(sorted_pop)*retain)
+    retained_len = int(len(sorted_pop)*retain_rate)
     parents = sorted_pop[:retained_len] #form mating pools
 
     #add other individuals to promote genetic diversity
@@ -115,25 +162,19 @@ def evolve(pop, groups, retain=0.05, mutate=0.5, random_select=0.02):
         mate1 = parents[mate1]
         mate2 = parents[mate2]
         crossover_point = randint(0, individual_len-1)
-        '''crossover_point2 = randint(0, individual_len-1)
-        if(crossover_point < crossover_point2):
-            child = mate1[:crossover_point] + mate2[crossover_point:crossover_point2] + mate1[crossover_point2:]
-        else:
-            child = mate1[:crossover_point2] + mate2[crossover_point2:crossover_point] + mate1[crossover_point:]'''
-        child = mate1[:crossover_point] + mate2[crossover_point:]
+        child = crossover(mate1, mate2, 'uniform', crossover_rate)
+        #child = mate1[:crossover_point] + mate2[crossover_point:]
         #print str(child.count(1)) + ":" + str(child.count(2)) + ":" + str(child.count(3)) + ":" + str(child.count(4))
         children.append(child)
     parents.extend(children)
 
     #mutate some individuals
     for individual in parents:
-        if random() > mutate:
-            mutate_point = randint(0, individual_len-1)
-            individual[mutate_point] = randint(1, groups)
+        individual = mutate(individual, 'swap', mutate_rate)
 
     return parents
 
-def genetic_algorithm(pop_size=50, ind_len=100, gene_min=1, gene_max=4, gen_num=100):
+def genetic_algorithm(pop_size=50, ind_len=100, gene_min=1, gene_max=4, gen_num=200):
     pop = population(pop_size, ind_len, gene_min, gene_max)
     for i in range(0, gen_num):
         pop = evolve(pop, groups=gene_max)
@@ -154,7 +195,13 @@ def plot_result(individual):
     plt.plot(evolve_gen, evolve_history, color='b')
     plt.show()
 
+def get_permutations(range=0, repeat=2):
+    x = [1,2,3]
+    all_permutations = [p for p in itertools.product(x, repeat=repeat)]
+    print all_permutations
+
 if __name__ == '__main__':
     dataset = read_dataset('./Dataset/lineN100M4.txt')
     #plot_dataset(dataset)
-    genetic_algorithm(pop_size=50, ind_len=100, gene_min=1, gene_max=4, gen_num=300)
+    genetic_algorithm(pop_size=10000, ind_len=100, gene_min=1, gene_max=4, gen_num=10)
+    #get_permutations()
