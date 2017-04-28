@@ -107,12 +107,16 @@ def crossover(mate1, mate2, crossover_type, crossover_rate):
                 child.append(mate1[i])
             else:
                 child.append(mate2[i])
+    elif crossover_type == 'linear':
+        for i in range(0, len(mate1)):
+            ratio = random()
+            child.append(int(round(ratio*mate1[i]+(1-ratio)*mate2[i])))
     else:
         pass
 
     return child
 
-def mutate(individual, mutate_type, mutate_rate):
+def mutate(individual, mutate_type, mutate_rate, groups):
     individual_len = len(individual)
     if mutate_type == 'swap':
         if mutate_rate > random():
@@ -131,12 +135,12 @@ def mutate(individual, mutate_type, mutate_rate):
     else:
         if mutate_rate > random():
             mutate_point = randint(0, individual_len-1)
-            individual[mutate_point] = randint(1, 4)
+            individual[mutate_point] = randint(1, groups)
 
     return individual
 
 evolve_history = []
-def evolve(pop, groups, control_flow_type='steady-state', retain_rate=0.01, crossover_rate=0.5, mutate_rate=1, random_select=0.01):
+def evolve(pop, groups, control_flow_type='steady-state', retain_rate=0.1, crossover_rate=0.5, mutate_rate=0.5, random_select=0.01):
     grade = [ (fitness(ind, groups), ind) for ind in pop]
     #sorted in ascending order, the lower a fitness value is, the better the individual is
     sorted_pop = [ x[1] for x in sorted(grade) ]
@@ -165,14 +169,14 @@ def evolve(pop, groups, control_flow_type='steady-state', retain_rate=0.01, cros
         mate1 = parents[mate1]
         mate2 = parents[mate2]
         crossover_point = randint(0, individual_len-1)
-        child = crossover(mate1, mate2, '1-point', crossover_rate)
+        child = crossover(mate1, mate2, 'linear', crossover_rate)
         #child = mate1[:crossover_point] + mate2[crossover_point:]
         #print str(child.count(1)) + ":" + str(child.count(2)) + ":" + str(child.count(3)) + ":" + str(child.count(4))
         children.append(child)
 
     #mutate some individuals
     for individual in children:
-        individual = mutate(individual, 'swap', mutate_rate)
+        individual = mutate(individual, 'none', mutate_rate, groups)
 
     return children #parents
 
@@ -195,6 +199,8 @@ def plot_result(individual):
 
     evolve_gen = list(range(1, len(evolve_history)+1))
     plt.plot(evolve_gen, evolve_history, color='b')
+    plt.xlabel('Number of Generations')
+    plt.ylabel('Fitness Value')
     plt.show()
 
 def get_permutations(range=0, repeat=2):
@@ -203,7 +209,12 @@ def get_permutations(range=0, repeat=2):
     print all_permutations
 
 if __name__ == '__main__':
-    dataset = read_dataset('./Dataset/lineN100M4.txt')
+    dataset = read_dataset('./Dataset/lineN200M3.txt')
     #plot_dataset(dataset)
-    genetic_algorithm(pop_size=100, ind_len=100, gene_min=1, gene_max=4, gen_num=200)
+    genetic_algorithm(pop_size=100, ind_len=200, gene_min=1, gene_max=3, gen_num=200)
     #get_permutations()
+    '''ind1 = individual(10, 1, 5)
+    ind2 = individual(10, 1, 5)
+    print ind1
+    child = crossover(ind1, ind2, 'linear', 0)
+    print child'''
