@@ -1,3 +1,4 @@
+#Reference: https://lethain.com/genetic-algorithms-cool-name-damn-simple/
 import pandas as pd
 import sys
 import matplotlib
